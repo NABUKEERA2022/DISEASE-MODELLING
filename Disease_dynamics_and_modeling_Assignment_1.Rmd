@@ -1,0 +1,143 @@
+---
+title: 'Name, Registration number'
+subtitle: 'Solving the SIR model'
+output: html_notebook
+---
+## Adapted from; Infectious Disease modelling workshop Day 1, session3 computer lab - September 2021 (ILRI Nairobi & University of Warwick UK)
+```{r}
+# Check what packages are installed.
+#my_packages <- rownames(installed.packages())
+
+# Install desolve if it is missing.
+#install.packages(setdiff("deSolve", my_packages))
+```
+
+# Walkthrough: how to numerically solve an SIR model
+
+A novel pathogen has been discovered in 1 individual in a population of 1000 individuals.
+It has been found to have an infectious period of 4 days and a daily transmission rate of 1.7. 
+You are to analyse the spread of this pathogen during the first 30 days of the outbreak using an SIR model.
+We will find, plot and save the solution.
+
+Step 1: write a function that computes the system of ODEs and returns a list containing the derivatives. The input parameters of this function are time `t`, the compartments as a vector `x`, and model parameters `parameters`. The outputs of the function are a list of derivatives. We name this function as `SIR.model`.
+```{r}
+SIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  I <- x[2]
+  R <- x[3]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  gamma <- parameters$gamma
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- -beta*S*I/N
+  dI <- beta*S*I/N - gamma*I
+  dR <- gamma*I
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dI, dR))
+  return(derivatives)
+}
+```
+
+Step 2: define the initial conditions, parameters and times at which you wish to compute the solution.
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = "?", I = "?", R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), and recovery rate (gamma).
+pars <- list(beta = "?", gamma = "?")
+
+# The solution times: the sequence of times for which to compute the solution.
+# This will be numbers 0 to 30.
+time <- seq(from = 0, to = 30, by = 1)
+```
+
+Step 3: solve the system using the 'lsoda' function from the 'deSolve' package (try help(lsoda) or ??Isoda for help). 
+## ode vs lsoda
+```{r}
+# Load in the deSolve package.
+library(deSolve)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+
+Step 4: plot the solution for all compartments on a single plot.
+```{r}
+# First plot time (x-axis) against the number of susceptible (y-axis).
+plot(out$time, out$S,
+     type = 'l', col = 'green', ylab = "Number of individuals in each compartment",
+     xlab = "Time (days)", lwd = 3, ylim = c(0, 1000))
+
+# Next, we can add lines for time against infecteds, and time against recovered/removed.
+lines(out$time, out$I, col = 'red', lwd = 3)
+lines(out$time, out$R, col = 'grey', lwd = 3)
+
+# Finally, we can add a legend so we know what lines correspond to what compartment.
+legend("right", legend = c("S","I","R"), col = c("green","red","grey"), lwd = 2)
+```
+
+Step 5: save the solution as a .csv file called "sir_model_demo.csv". This file will
+be saved in the same directory as the Rmarkdown file. 
+```{r}
+write.csv(out, "sir_model_demo.csv", row.names = FALSE)
+```
+
+Congratulations! You have now solved, plotted and saved the results of your first SIR model!
+
+# Exercises: exploring the SIR model
+Now we can make some modifications to the model parameters, and observe how the model output changes.
+
+## Exercise 1
+
+Find the number of individuals which will be infectious on days: 5, 10 and 25.4
+
+*Hint: combine the code from steps 2--3 in part A, and edit the times you want to compute the solution at in step 2...*
+```{r}
+
+```
+
+## Exercise 2
+
+Three interventions have been proposed which will lower the transmission rate. The expected transmission rates under each intervention are expected to be: 1.25, 0.75 and 0.1. For each of these interventions, find and plot the solution over 30 days. 
+
+*Hint: for each new transmission rate, you can re-use your code in steps 2--4 of the walkthrough. You will need to change the model parameters you specify in step 2.*
+
+**Advanced:** if you are familiar with R programming, you are welcome to test yourself by completing this problem using using a for loop.
+```{r}
+
+```
+
+## Exercise 3
+Under each intervention, approximately how many people are infected in the first
+30 days?
+
+*Hint: look at the number of susceptibles on the final day (day 30). Everyone on the final day who is not susceptible must have been infected at some point during the course of the epidemic. Recall there were 1000 individuals in the population at the start of the epidemic.*
+```{r}
+
+```
+
+## Exercise 4
+a) Calculate the expected R0 value of the disease under each intervention. 
+
+R0 = formula?
+
+R0 under each intervention?
+
+b) How can these R0 values explain the behaviour in your model output?
+
+

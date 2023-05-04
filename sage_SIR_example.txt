@@ -1,0 +1,75 @@
+#SIR model, with constant recruitment rate Lambda
+
+#OBJECTIVE: Computing equilibria and R0 using the Next Generation Method in SageMath
+
+#First, we declare parameters and state variables using the function var()
+#We have three state variables (S-susceptible, I-Infected, R-Removed/Recovered)
+#Parameters (Lambda:recruitment rate, mu:death rate, beta:transmission rate, gamma:recovery rate)
+
+var('mu, gamma, Lambda, beta, S, I, R')
+
+#After declaring the parameters and state variables, we can now go on and write up the SIR model
+
+#First define the total population (N) which is given by the sum of all states at all times
+N = S + I + R
+#Write up the model (the system of differential equations  )
+
+dS = Lambda - beta*S*I/N - mu*S    #Rate of change of the susceptible group
+dI = beta*S*I/N - mu*I - gamma*I   #Rate of change of the infected group
+dR = gamma*I - mu*R                #Rate of change of the Recovered group
+
+#display the model equations and check that everything looks fine
+show(dS)
+show(dI)
+show(dR)
+
+##################### COMPUTING EQUILIBRIUM POINTS ########################################
+#Now that we have the model equations we can go on compute the equilibrium points
+#We do this by equating all equations to zero. The sage function used is solve()
+#It take the first input as a list of equations equated to zero, that is [dS==0, dI==0, dR==0]
+#followed by the states for which solutions are required
+#In this case, we store the results in a variable soln
+soln = solve([dS==0, dI==0, dR==0], S, I, R) 
+
+#Display the solution
+show(soln)
+
+#The solution consists of three sets of solutions; The Disease Free Equilibrium (DFE); where I=0 and S is #non zero [𝑆=Λ/𝜇,𝐼=0,𝑅=0], the Endemic Equilibrium (EE) where I is different from zero. Upon displaying #the soln as shown above, one can easily identify the DFE as well as the EE. 
+#Take note of DFE as we shall use it in computing R0
+
+######### COMPUTING BASIC REPRODUCTION NUMBER USING NEXT GENERATION MATRIX MTD #################
+
+#1. First we need to identify compartments with active infections; In this case we have only one such compartment that is I.
+#2. Then we identify terms in the compartment(s) identified above that are new infections, we put this in matrix f
+#Looking at the equation of the I compartment, we have one term for new infections beta*S*I/N
+
+f = matrix([beta*S*I/N])
+show(f)
+
+#3. Then we identify terms in the compartment(s) identified above that are NOT new infections, 
+#Some of the terms may be incoming (positive terms) and outgoing (negative terms)
+#Define v= vnegative-vpositive, for this case we have two v=[(mu*I+gamma*I)-0]=mu*I+gamma*I
+
+v = matrix([mu*I+gamma*I]) 
+show(v)
+
+#4. Compute the Jacobian matrices of f (F) and v (V) with respect to the infectious state(s) using jacobian() function, in this case I and evaluate the evaluate both Jacobian matrices at DFE. 
+
+F=jacobian(f, I)                 #Obtain Jacobian of f with respect to I, call it F
+F_dfe=F(S=Lambda/mu, I=0, R=0)   #Evaluate F at DFE
+V=jacobian(v, I)		     #Obtain Jacobian of v with respect to I, call it V
+V_dfe=V(S=Lambda/mu,I=0, R=0)    #Evaluate V at DFE
+
+#5. Compute inverse of V_dfe, using the inverse() property of a matrix
+V_dfe_inv = V_dfe.inverse()
+show(V_dfe_inv)
+
+#6. Compute the NEXT GENERATION MATRIX, G by multiplying of F_dfe and V_dfe_inv
+G = F_dfe*V_dfe_inv
+
+#7. Obtain the eigen values of FV_1 using the eigenvalues() property of a matrix
+evalues = G.eigenvalues()
+
+show(evalues) #Display eigen values
+
+#8. R0 is the dominant eigen value of the next generation matrix G. In this case we have only one engine value and it the Ro. In cases where we have more than one eigen value, we have to pick the maximum eigen value as R0.

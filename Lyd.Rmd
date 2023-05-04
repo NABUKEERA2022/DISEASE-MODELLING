@@ -1,0 +1,113 @@
+---
+title: "question3"
+author: "Kakande"
+date: "2023-04-11"
+output: html_document
+---
+```{r}
+SIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  I <- x[2]
+  R <- x[3]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  gamma <- parameters$gamma
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- -beta*S*I/N
+  dI <- beta*S*I/N - gamma*I
+  dR <- gamma*I
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dI, dR))
+  return(derivatives)
+}
+```
+
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = 999.0, I = 1.0, R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), and recovery rate (gamma).
+pars <- list(beta = 1.7, gamma = 0.25)
+
+# The solution times: the sequence of times for which to compute the solution.
+# This will be numbers 0 to 30.
+time <- seq(from = 0, to = 30, by = 1)
+```
+
+```{r}
+# Load in the deSolve package.
+library(deSolve)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+
+```
+
+
+## Exercise 3
+Under each intervention, approximately how many people are infected in the first
+30 days?
+
+*Hint: look at the number of susceptibles on the final day (day 30). Everyone on the final day who is not susceptible must have been infected at some point during the course of the epidemic. Recall there were 1000 individuals in the population at the start of the epidemic.*
+
+For transmission rate of 1.25,
+```{r}
+pars <- list(beta = 1.25, gamma = 0.25)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+  
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+
+#Number of people infected in the first 30 days.
+cat("The number of people infected in the first 30 days is approximately " , ceiling(1000-out[31,2]),".\n", sep = "")
+```
+For transmission rate of 0.75,
+```{r}
+pars <- list(beta = 0.75, gamma = 0.25)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+  
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+
+#Number of people infected in the first 30 days.
+cat("The number of people infected in the first 30 days is approximately " , ceiling(1000-out[31,2]),".\n", sep = "")
+```
+
+For transmission rate of 0.1,
+```{r}
+pars <- list(beta = 0.1, gamma = 0.25)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+  
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+
+#Number of people infected in the first 30 days.
+cat("The number of people infected in the first 30 days is approximately " , ceiling(1000-out[31,2]),".\n", sep = "")
+```

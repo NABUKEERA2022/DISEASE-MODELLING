@@ -1,0 +1,101 @@
+---
+title: 'Name, Registration number'
+subtitle: 'Solving the SIR model'
+output: html_notebook
+---
+## Adapted from; Infectious Disease modelling workshop Day 1, session3 computer lab - September 2021 (ILRI Nairobi & University of Warwick UK)
+```{r}
+# Check what packages are installed.
+#my_packages <- rownames(installed.packages())
+
+# Install desolve if it is missing.
+#install.packages(setdiff("deSolve", my_packages))
+```
+
+# Walkthrough: how to numerically solve an SIR model
+
+A novel pathogen has been discovered in 1 individual in a population of 1000 individuals.
+It has been found to have an infectious period of 4 days and a daily transmission rate of 1.7. 
+You are to analyse the spread of this pathogen during the first 30 days of the outbreak using an SIR model.
+We will find, plot and save the solution.
+
+Step 1: write a function that computes the system of ODEs and returns a list containing the derivatives. The input parameters of this function are time `t`, the compartments as a vector `x`, and model parameters `parameters`. The outputs of the function are a list of derivatives. We name this function as `SIR.model`.
+```{r}
+SIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  I <- x[2]
+  R <- x[3]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  gamma <- parameters$gamma
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- -beta*S*I/N
+  dI <- beta*S*I/N - gamma*I
+  dR <- gamma*I
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dI, dR))
+  return(derivatives)
+}
+```
+
+Step 2: define the initial conditions, parameters and times at which you wish to compute the solution.
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = "?", I = "?", R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), and recovery rate (gamma).
+pars <- list(beta = "?", gamma = "?")
+
+# The solution times: the sequence of times for which to compute the solution.
+# This will be numbers 0 to 30.
+time <- seq(from = 0, to = 30, by = 1)
+```
+
+Step 3: solve the system using the 'lsoda' function from the 'deSolve' package (try help(lsoda) or ??Isoda for help). 
+## ode vs lsoda
+```{r}
+# Load in the deSolve package.
+library(deSolve)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+
+Step 4: plot the solution for all compartments on a single plot.
+```{r}
+# First plot time (x-axis) against the number of susceptible (y-axis).
+plot(out$time, out$S,
+     type = 'l', col = 'green', ylab = "Number of individuals in each compartment",
+     xlab = "Time (days)", lwd = 3, ylim = c(0, 1000))
+
+# Next, we can add lines for time against infecteds, and time against recovered/removed.
+lines(out$time, out$I, col = 'red', lwd = 3)
+lines(out$time, out$R, col = 'grey', lwd = 3)
+
+# Finally, we can add a legend so we know what lines correspond to what compartment.
+legend("right", legend = c("S","I","R"), col = c("green","red","grey"), lwd = 2)
+```
+
+Step 5: save the solution as a .csv file called "sir_model_demo.csv". This file will
+be saved in the same directory as the Rmarkdown file. 
+```{r}
+write.csv(out, "sir_model_demo.csv", row.names = FALSE)
+```
+
+Congratulations! You have now solved, plotted and saved the results of your first SIR model!
+

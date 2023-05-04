@@ -1,0 +1,353 @@
+---
+title: "Disease Dynamics and Modelling Assignment 2"
+subtitle: Solving the SEIR model
+output:
+  pdf_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+# Walkthrough: how to numerically solve an SEIR model
+
+A novel pathogen has been discovered in 3 individuals in a population of 1000 individuals, with 2 individuals exposed but not infectious and 1 individual exposed and infectious.
+It has been found to have an incubation/progression period of 5 days, an infectious period of 10 days and a daily transmission rate of 1.7. 
+You are to analyse the spread of this pathogen during the first 100 days of the outbreak using an SEIR model.
+Find and plot the solution.
+
+Step 1: write a function that computes the system of ODEs and returns a list containing the derivatives. The input parameters of this function are time `t`, the compartments as a vector `x`, and model parameters `parameters`. The outputs of the function are a list of derivatives. We name this function as `SEIR.model`.
+```{r}
+SEIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  E <- x[2]
+  I <- x[3]
+  R <- x[4]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  rho <- parameters$rho
+  gamma <- parameters$gamma
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + E + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- -beta*S*I/N
+  dE <- beta*S*I/N - rho*E
+  dI <- rho*E - gamma*I
+  dR <- gamma*I
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dE, dI, dR))
+  return(derivatives)
+}
+```
+
+Step 2: define the initial conditions, parameters and times at which you wish to compute the solution.
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = 997, E = 2, I = 1, R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), progression rate (rho) and recovery rate (gamma).
+pars <- list(beta = 1.7, rho = 0.2, gamma = 0.1)
+
+# The solution times: the sequence of times for which to compute the solution.
+time <- seq(from = 0, to = 100, by = 1)
+```
+
+Step 3: solve the system using the 'lsoda' function from the 'deSolve' package (try help(lsoda) or ??Isoda for help). 
+## ode vs lsoda
+```{r}
+# Load in the deSolve package.
+library(deSolve)
+
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = SEIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+
+Step 4: plot the solution for all compartments on a single plot.
+```{r}
+# First plot time (x-axis) against the number of susceptible (y-axis).
+plot(out$time, out$S,
+     type = 'l', col = 'green', ylab = "Number of individuals in each compartment",
+     xlab = "Time (days)", lwd = 3, ylim = c(0, 1000), xlim = c(0,103))
+
+# Next, we can add lines for time against infecteds, and time against recovered/removed.
+lines(out$time, out$E, col = 'blue', lwd = 3)
+lines(out$time, out$I, col = 'red', lwd = 3)
+lines(out$time, out$R, col = 'grey', lwd = 3)
+
+# Finally, we can add a legend so we know what lines correspond to what compartment.
+legend("topright", legend = c("S","E","I","R"), col = c("green","blue","red","grey"), lwd = 2)
+```
+```{r}
+# view the last days of the model
+tail(round(out))
+```
+
+
+# Exercises: exploring the SEIR model
+Now we can make some modifications to the model parameters, and observe how the model output changes.
+```{r}
+myplotter <- function(out){
+  # First plot time (x-axis) against the number of susceptible (y-axis).
+  plot(out$time, out$S,
+     type = 'l', col = 'green', ylab = "Number of individuals in each compartment",
+     xlab = "Time (days)", lwd = 3, ylim = c(0, 1000), xlim = c(0,103))
+
+  # Next, we can add lines for time against infecteds, and time against recovered/removed.
+  lines(out$time, out$E, col = 'blue', lwd = 3)
+  lines(out$time, out$I, col = 'red', lwd = 3)
+  lines(out$time, out$R, col = 'grey', lwd = 3)
+
+  # Finally, we can add a legend so we know what lines correspond to what compartment.
+  legend("topright", legend = c("S","E","I","R"), col = c("green","blue","red","grey"), lwd = 2)
+}
+```
+
+## Exercise 1
+
+Add vital dynamics to the model i.e. birth and death, assuming;
+i) All individuals can reproduce regardless of the compartment
+ii) All newborn individuals are born into the susceptible compartment
+iii) The population is constant i.e. birth and death rate are equal
+
+Given the same population and parameters, with the daily birth/death rate (mu) = 0.0002, plot the trajectory of all the compartments in 100 days.
+
+```{r}
+modified.SEIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  E <- x[2]
+  I <- x[3]
+  R <- x[4]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  rho <- parameters$rho
+  gamma <- parameters$gamma
+  mu <- parameters$mu
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + E + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- mu*N - beta*I*S/N - mu*S
+  dE <- beta*S*I/N - (mu + rho)*E
+  dI <- rho*E - (mu + gamma)*I
+  dR <- gamma*I - mu*R
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dE, dI, dR))
+  return(derivatives)
+}
+
+```
+
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = 997, E = 2, I = 1, R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), progression rate (rho) and recovery rate (gamma).
+pars <- list(beta = 1.7, rho = 0.2, gamma = 0.1, mu = 0.0002)
+
+# The solution times: the sequence of times for which to compute the solution.
+time <- seq(from = 0, to = 100, by = 1)
+```
+
+```{r}
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = modified.SEIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+```{r}
+myplotter(out = out)
+```
+
+
+```{r}
+# view the last days of the model
+tail(round(out))
+```
+## Exercise 2
+Add temporary immunity of 9 days
+
+```{r}
+temp.modified.SEIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  E <- x[2]
+  I <- x[3]
+  R <- x[4]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  rho <- parameters$rho
+  gamma <- parameters$gamma
+  mu <- parameters$mu
+  w <- parameters$w
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + E + I + R
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- mu + w*R - beta*I*S/N - mu*S
+  dE <- beta*S*I/N - (mu + rho)*E
+  dI <- rho*E - (mu + gamma)*I
+  dR <- gamma*I - w*R - mu*R
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dE, dI, dR))
+  return(derivatives)
+}
+```
+
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = 997, E = 2, I = 1, R = 0.0)
+
+# The model parameters: what is the transmission rate (beta), progression rate (rho) and recovery rate (gamma).
+pars <- list(beta = 1.7, rho = 0.2, gamma = 0.1, mu = 0.0002, w = 1/9)
+
+# The solution times: the sequence of times for which to compute the solution.
+time <- seq(from = 0, to = 100, by = 1)
+```
+
+```{r}
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = temp.modified.SEIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+```{r}
+myplotter(out = out)
+```
+
+
+```{r}
+# view the last days of the model
+tail(round(out))
+```
+
+
+## Exercise 3
+With the vital dynamics mantained, add a vaccination rate of 0.0005 with permanent immunity after both vaccination and recovery.
+
+```{r}
+vac.modified.SEIR.model <- function(t, x, parameters){ 
+  # Get the current number of individuals in each compartment.
+  S <- x[1]
+  E <- x[2]
+  I <- x[3]
+  R <- x[4]
+  V <- x[5]
+  
+  # Get the model parameters.
+  beta <- parameters$beta
+  rho <- parameters$rho
+  gamma <- parameters$gamma
+  mu <- parameters$mu
+  w <- parameters$w
+  v <- parameters$v
+  
+  # Calculate the total number of individuals in the system.
+  # This is just all the compartments added together.
+  N <- S + E + I + R + V
+  
+  # Calculate the derivatives (the system of ODEs).
+  dS <- mu - beta*I*S/N - mu*S - v*S
+  dE <- beta*S*I/N - (mu + rho)*E
+  dI <- rho*E - (mu + gamma)*I
+  dR <- gamma*I - mu*R
+  dV <- v*S - mu*V
+  
+  # Return the derivatives inside a list.
+  derivatives <- list(c(dS, dE, dI, dR, dV))
+  return(derivatives)
+}
+```
+
+```{r}
+# The initial parameters: how many people are in each compartment at the start of
+# the model?
+init <- c(S = 997, E = 2, I = 1, R = 0.0, V = 0.0)
+
+# The model parameters: what is the transmission rate (beta), progression rate (rho) and recovery rate (gamma).
+pars <- list(beta = 1.7, rho = 0.2, gamma = 0.1, mu = 0.0002, w = 1/9, v = 0.0005)
+
+# The solution times: the sequence of times for which to compute the solution.
+time <- seq(from = 0, to = 100, by = 1)
+```
+
+```{r}
+# lsoda is a function with inputs: ODE system (as a function), initial conditions,
+# parameters and times to compute the solution. The solution for the SIR model is
+# stored in 'out'.
+out <- lsoda(func = vac.modified.SEIR.model, y = init, parms = pars, times = time)
+
+# Convert the solution into a data.frame. This makes plotting easier.
+out <- as.data.frame(out)
+head(out)
+```
+```{r}
+# First plot time (x-axis) against the number of susceptible (y-axis).
+plot(out$time, out$S,
+     type = 'l', col = 'green', ylab = "Number of individuals in each compartment",
+     xlab = "Time (days)", lwd = 3, ylim = c(0, 1000), xlim = c(0,103))
+
+# Next, we can add lines for time against infecteds, and time against recovered/removed.
+lines(out$time, out$E, col = 'blue', lwd = 3)
+lines(out$time, out$I, col = 'red', lwd = 3)
+lines(out$time, out$R, col = 'grey', lwd = 3)
+lines(out$time, out$V, col = 'black', lwd = 3)
+
+# Finally, we can add a legend so we know what lines correspond to what compartment.
+legend("topright", legend = c("S","E","I","R","V"), col = c("green","blue","red","grey","black"), lwd = 2)
+```
+
+```{r}
+# view the last days of the model
+tail(round(out))
+```
+
+i) What is the Ro of the final model and what does it imply?
+
+Ro = beta/(gamma + mu)
+Ro = 1.7/(0.1 + 0.0002)
+Ro = 16.96607
+Ro = 17
+
+The Ro of 17 implies that each infectious individual is capable of infecting 17 other susceptible individuals.
+
+
+ii) What proportion of individuals would have to be vaccinated to attain herd immunity for the final model?
+Proportion, P of individuals to be vaccinated to attain herd immunity for the final model is as;
+
+P = 1 - (1/Ro)
+P = 1 - (1/17)
+P = 0.9411765
+
+
